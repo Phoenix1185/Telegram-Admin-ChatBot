@@ -1,44 +1,35 @@
-import os
-from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram import Update, Bot, InputMediaPhoto
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Set your bot token and your Telegram user ID (admin)
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = int(os.environ.get("ADMIN_ID"))  # Your personal Telegram ID
+import logging
 
-# Start command
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Hi! Just send me a message and my creator will reply soon.")
+# Logging (optional but useful)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# When a user sends a message
-def handle_user_message(update: Update, context: CallbackContext):
-    user = update.message.from_user
-    msg = f"New message from @{user.username or user.first_name} (ID: {user.id}):\n\n{update.message.text}"
-    context.bot.send_message(chat_id=ADMIN_ID, text=msg)
+BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
 
-# When admin replies
-def handle_admin_reply(update: Update, context: CallbackContext):
-    if update.message.reply_to_message:
-        # Extract user ID from the original message
-        original_text = update.message.reply_to_message.text
-        try:
-            user_id = int(original_text.split("ID: ")[1].split(")")[0])
-            context.bot.send_message(chat_id=user_id, text=update.message.text)
-        except:
-            update.message.reply_text("Couldn't extract user ID. Make sure you're replying to the bot's forwarded message.")
-    else:
-        update.message.reply_text("Reply to a user's message to respond.")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Welcome! Send me a photo, and I'll reply. You can also use /photo to get one.")
 
-def main():
-    updater = Updater(BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
+async def send_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    photo_url = "https://via.placeholder.com/300.png?text=Hello+from+Bot"
+    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo_url, caption="Here's a picture!")
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.private & Filters.reply, handle_admin_reply))
-    dp.add_handler(MessageHandler(Filters.private & ~Filters.command, handle_user_message))
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    file_id = update.message.photo[-1].file_id
+    await update.message.reply_text("Nice photo! Here's your image again:")
+    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=file_id)
 
-    updater.start_polling()
-    updater.idle()
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Send me a photo or type /photo!")
 
 if __name__ == "__main__":
-    main()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("photo", send_photo))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    print("Bot is running...")
+    app.run_polling()
