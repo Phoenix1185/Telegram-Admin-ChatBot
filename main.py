@@ -1,35 +1,31 @@
-from telegram import Update, Bot, InputMediaPhoto
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-import logging
+def start(update, context):
+    update.message.reply_text("Welcome! Send me a photo, or use /photo to get one.")
 
-# Logging (optional but useful)
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+def photo(update, context):
+    chat_id = update.message.chat_id
+    context.bot.send_photo(chat_id=chat_id, photo="https://via.placeholder.com/300.png?text=Hello+from+Bot")
 
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Welcome! Send me a photo, and I'll reply. You can also use /photo to get one.")
-
-async def send_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    photo_url = "https://via.placeholder.com/300.png?text=Hello+from+Bot"
-    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo_url, caption="Here's a picture!")
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def handle_photo(update, context):
     file_id = update.message.photo[-1].file_id
-    await update.message.reply_text("Nice photo! Here's your image again:")
-    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=file_id)
+    update.message.reply_text("Thanks for the photo! Here it is again:")
+    context.bot.send_photo(chat_id=update.message.chat_id, photo=file_id)
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Send me a photo or type /photo!")
+def handle_text(update, context):
+    update.message.reply_text("Send a photo or type /photo!")
+
+def main():
+    updater = Updater("YOUR_BOT_TOKEN", use_context=True)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("photo", photo))
+    dp.add_handler(MessageHandler(Filters.photo, handle_photo))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
+
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("photo", send_photo))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    print("Bot is running...")
-    app.run_polling()
+    main()
